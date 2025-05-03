@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Network Dashboard</h1>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Network Status Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card text-white bg-success mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title" id="up-count">0</h5>
+                                <p class="card-text">Devices Up</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-white bg-danger mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title" id="down-count">0</h5>
+                                <p class="card-text">Devices Down</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-white bg-info mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title" id="total-count">0</h5>
+                                <p class="card-text">Total Devices</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Device Status</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                            <th>Last Checked</th>
+                        </tr>
+                    </thead>
+                    <tbody id="device-table">
+                        {% for device in devices %}
+                        <tr>
+                            <td>{{ device.name }}</td>
+                            <td>{{ device.ip }}</td>
+                            <td>
+                                <span class="badge bg-{% if device.status == 'up' %}success{% else %}danger{% endif %}">
+                                    {{ device.status }}
+                                </span>
+                            </td>
+                            <td>{{ device.last_checked }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Response Times</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="responseChart" height="300"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Events</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group" id="event-log">
+                    <div class="list-group-item">
+                        <small>System initialized</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update counts
+    const upCount = document.querySelectorAll('.badge.bg-success').length;
+    const downCount = document.querySelectorAll('.badge.bg-danger').length;
+    const totalCount = upCount + downCount;
+    
+    document.getElementById('up-count').textContent = upCount;
+    document.getElementById('down-count').textContent = downCount;
+    document.getElementById('total-count').textContent = totalCount;
+
+    // Response time chart
+    const ctx = document.getElementById('responseChart').getContext('2d');
+    const responseChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Device 1', 'Device 2', 'Device 3'],
+            datasets: [{
+                label: 'Response Time (ms)',
+                data: [12, 19, 15],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Real-time updates
+    function updateDashboard() {
+        fetch('/api/devices')
+            .then(response => response.json())
+            .then(data => {
+                // Update device table
+                const tableBody = document.getElementById('device-table');
+                tableBody.innerHTML = '';
+                
+                data.forEach(device => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${device.name || 'N/A'}</td>
+                        <td>${device.ip}</td>
+                        <td>
+                            <span class="badge bg-${device.status === 'up' ? 'success' : 'danger'}">
+                                ${device.status}
+                            </span>
+                        </td>
+                        <td>${device.last_checked}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                
+                // Update counts
+                const upCount = data.filter(d => d.status === 'up').length;
+                const downCount = data.filter(d => d.status === 'down').length;
+                const totalCount = data.length;
+                
+                document.getElementById('up-count').textContent = upCount;
+                document.getElementById('down-count').textContent = downCount;
+                document.getElementById('total-count').textContent = totalCount;
+            });
+    }
+
+    // Update every 30 seconds
+    setInterval(updateDashboard, 30000);
+});
+</script>
+{% endblock %}

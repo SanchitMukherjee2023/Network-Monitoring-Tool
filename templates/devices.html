@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Device Management{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Device Management</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Add New Device</h5>
+    </div>
+    <div class="card-body">
+        <form id="add-device-form">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="device-ip" class="form-label">IP Address</label>
+                        <input type="text" class="form-control" id="device-ip" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="device-name" class="form-label">Device Name (Optional)</label>
+                        <input type="text" class="form-control" id="device-name">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Device</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Monitored Devices</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Device Name</th>
+                    <th>IP Address</th>
+                    <th>Status</th>
+                    <th>Last Checked</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="devices-list">
+                {% for device in devices %}
+                <tr data-id="{{ device.id }}">
+                    <td>{{ device.name or 'N/A' }}</td>
+                    <td>{{ device.ip }}</td>
+                    <td>
+                        <span class="badge bg-{% if device.status == 'up' %}success{% else %}danger{% endif %}">
+                            {{ device.status }}
+                        </span>
+                    </td>
+                    <td>{{ device.last_checked }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info view-history" data-id="{{ device.id }}">History</button>
+                        <button class="btn btn-sm btn-danger delete-device" data-id="{{ device.id }}">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ping History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <canvas id="historyChart" height="300"></canvas>
+                <table class="table table-striped mt-3">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Status</th>
+                            <th>Response Time (ms)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table">
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add device form
+    const addDeviceForm = document.getElementById('add-device-form');
+    addDeviceForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const ip = document.getElementById('device-ip').value;
+        const name = document.getElementById('device-name').value;
+        
+        fetch('/api/devices', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ip: ip,
+                name: name
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Add new device to table
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-id', data.id);
+            newRow.innerHTML = `
+                <td>${name || 'N/A'}</td>
+                <td>${ip}</td>
+                <td>
+                    <span class="badge bg-secondary">unknown</span>
+                </td>
+                <td>Just now</td>
+                <td>
+                    <button class="btn btn-sm btn-info view-history" data-id="${data.id}">History</button>
+                    <button class="btn btn-sm btn-danger delete-device" data-id="${data.id}">Delete</button>
+                </td>
+            `;
+            
+            document.getElementById('devices-list').appendChild(newRow);
+            addDeviceForm.reset();
+            
+            // Show success message
+            alert('Device added successfully! It will be monitored shortly.');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add device');
+        });
+    });
+    
+    // Delete device
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-device')) {
+            const deviceId = e.target.getAttribute('data-id');
+            
+            if (confirm('Are you sure you want to delete this device?')) {
+                fetch(`/api/devices/${deviceId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Remove device row
+                        document.querySelector(`tr[data-id="${deviceId}"]`).remove();
+                    } else {
+                        alert('Failed to delete device');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete device');
+                });
+            }
+        }
+    });
+    
+    // View history
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('view-history')) {
+            const deviceId = e.target.getAttribute('data-id');
+            const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+            
+            fetch(`/api/devices/${deviceId}/history`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update history table
+                    const historyTable = document.getElementById('history-table');
+                    historyTable.innerHTML = '';
+                    
+                    data.forEach(record => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${record.timestamp}</td>
+                            <td>
+                                <span class="badge bg-${record.status === 'up' ? 'success' : 'danger'}">
+                                    ${record.status}
+                                </span>
+                            </td>
+                            <td>${record.response_time || 'N/A'}</td>
+                        `;
+                        historyTable.appendChild(row);
+                    });
+                    
+                    // Create chart
+                    const ctx = document.getElementById('historyChart').getContext('2d');
+                    if (window.historyChart) {
+                        window.historyChart.destroy();
+                    }
+                    
+                    const labels = data.map(record => record.timestamp.split(' ')[1]);
+                    const responseTimes = data.map(record => record.response_time || 0);
+                    
+                    window.historyChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Response Time (ms)',
+                                data: responseTimes,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                    
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to load history');
+                });
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.badge {
+    font-size: 0.9em;
+}
+
+#event-log {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.list-group-item {
+    padding: 0.5rem 1rem;
+}
+
+.modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.table {
+    margin-bottom: 0;
+}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Settings</h1>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Application Settings</h5>
+    </div>
+    <div class="card-body">
+        <form>
+            <div class="mb-3">
+                <label for="monitoring-interval" class="form-label">Monitoring Interval (seconds)</label>
+                <input type="number" class="form-control" id="monitoring-interval" value="60" min="10">
+            </div>
+            <div class="mb-3">
+                <label for="alert-email" class="form-label">Alert Email</label>
+                <input type="email" class="form-control" id="alert-email" placeholder="email@example.com">
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="enable-alerts" checked>
+                <label class="form-check-label" for="enable-alerts">Enable Email Alerts</label>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5>System Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Application Version:</strong> 1.0.0</p>
+                <p><strong>Database:</strong> SQLite</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Uptime:</strong> 2 days, 5 hours</p>
+                <p><strong>Last Checked:</strong> Just now</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
